@@ -47,6 +47,11 @@ pub trait Command {
 	fn dump<T: Write>(&self, T) -> Result<usize>;
 }
 
+pub trait NullaryCommand {
+	fn opcode() -> u8;
+	fn direction() -> Direction;
+}
+
 pub struct Set<T> {
 	object: T,
 }
@@ -55,9 +60,14 @@ pub struct Get<T> {
 	phantom: PhantomData<T>,
 }
 
-impl<T: HasCommandOpcode> Command for Get<T> {
+impl<T: HasCommandOpcode> NullaryCommand for Get<T> {
 	fn opcode() -> u8 { <T as HasCommandOpcode>::opcode() }
 	fn direction() -> Direction { Direction::Read }
+}
+
+impl<T: NullaryCommand> Command for T {
+	fn opcode() -> u8 { <T as NullaryCommand>::opcode() }
+	fn direction() -> Direction { <T as NullaryCommand>::direction() }
 	fn length(&self) -> u8 { 0 }
 	fn dump<U: Write>(&self, w: U) -> Result<usize> { std::result::Result::Ok(0) }
 }
