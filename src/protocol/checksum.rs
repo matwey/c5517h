@@ -1,15 +1,15 @@
 use std::io::Write;
 use std::io::Result;
 
-trait CheckSum {
+pub trait CheckSum {
 	fn value(&self) -> u8;
 	fn consume(&mut self, buf: &[u8]) -> usize;
 }
 
-struct XORCheckSum(u8);
+pub struct XORCheckSum(u8);
 
 impl XORCheckSum {
-	fn new() -> XORCheckSum {
+	pub fn new() -> XORCheckSum {
 		XORCheckSum(0)
 	}
 }
@@ -24,19 +24,19 @@ impl CheckSum for XORCheckSum {
 	}
 }
 
-struct CheckSumWriter<T: CheckSum, U: Write> {
+pub struct CheckSumWriter<T: CheckSum, U: Write> {
 	checksum: T,
 	inner: U,
 }
 
 impl<T: CheckSum, U: Write> CheckSumWriter<T, U> {
-	fn new(checksum: T, w: U) -> CheckSumWriter<T, U> {
+	pub fn new(checksum: T, w: U) -> CheckSumWriter<T, U> {
 		CheckSumWriter{checksum: checksum, inner: w}
 	}
-	fn checksum(&self) -> &T {
+	pub fn checksum(&self) -> &T {
 		&self.checksum
 	}
-	fn inner(&mut self) -> &mut U {
+	pub fn inner(&mut self) -> &mut U {
 		&mut self.inner
 	}
 }
