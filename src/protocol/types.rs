@@ -52,25 +52,53 @@ pub enum PowerState {
 	Off = 0,
 	On = 1,
 }
+impl HasCommandOpcode for PowerState {
+	fn opcode() -> u8 { 0x20 }
+}
+
 #[repr(u8)]
 pub enum PowerLED {
 	Off = 0,
 	On = 1,
 }
+impl HasCommandOpcode for PowerLED {
+	fn opcode() -> u8 { 0x21 }
+}
+
 #[repr(u8)]
 pub enum PowerUSB {
 	Off = 0,
 	On = 1,
 }
+impl HasCommandOpcode for PowerUSB {
+	fn opcode() -> u8 { 0x22 }
+}
+
 pub struct Brightness(u8);
+impl HasCommandOpcode for Brightness {
+	fn opcode() -> u8 { 0x30 }
+}
+
 pub struct Contrast(u8);
+impl HasCommandOpcode for Contrast {
+	fn opcode() -> u8 { 0x31 }
+}
+
 #[repr(u8)]
 pub enum AspectRatio {
 	_16X9 = 0,
 	_4X3 = 2,
 	_5X4 = 4,
 }
+impl HasCommandOpcode for AspectRatio {
+	fn opcode() -> u8 { 0x33 }
+}
+
 pub struct Sharpness(u8);
+impl HasCommandOpcode for Sharpness {
+	fn opcode() -> u8 { 0x34 }
+}
+
 #[repr(u32)]
 pub enum ColorTemperature {
 	_5000K  = 0x01,
@@ -80,11 +108,19 @@ pub enum ColorTemperature {
 	_9300K  = 0x10,
 	_15000K = 0x20,
 }
+impl HasCommandOpcode for ColorTemperature {
+	fn opcode() -> u8 { 0x43 }
+}
+
 #[repr(u8)]
 pub enum ColorFormat {
 	RGB = 0,
 	YPbPr = 1,
 }
+impl HasCommandOpcode for ColorFormat {
+	fn opcode() -> u8 { 0x46 }
+}
+
 #[repr(u32)]
 pub enum ColorPreset {
 	Standard    = 0x01,
@@ -92,6 +128,10 @@ pub enum ColorPreset {
 	ColorTemp   = 0x20,
 	CustomColor = 0x80,
 }
+impl HasCommandOpcode for ColorPreset {
+	fn opcode() -> u8 { 0x48 }
+}
+
 pub struct RGB {
 	r : u8,
 	g : u8,
@@ -101,6 +141,16 @@ pub struct RGB {
 pub enum CustomColor {
 	Gain(RGB),
 }
+
+#[repr(u8)]
+pub enum AutoSelect {
+	Off = 0,
+	On = 1,
+}
+impl HasCommandOpcode for AutoSelect {
+	fn opcode() -> u8 { 0x60 }
+}
+
 #[repr(u32)]
 pub enum VideoInput {
 	HDMI1 = 0x01,
@@ -108,7 +158,15 @@ pub enum VideoInput {
 	DP1   = 0x08,
 	VGA1  = 0x40,
 }
+impl HasCommandOpcode for VideoInput {
+	fn opcode() -> u8 { 0x62 }
+}
+
 pub struct OSDTransparency(u8);
+impl HasCommandOpcode for OSDTransparency {
+	fn opcode() -> u8 { 0x80 }
+}
+
 #[repr(u8)]
 pub enum OSDLanguage {
 	English = 0,
@@ -120,23 +178,47 @@ pub enum OSDLanguage {
 	Chinese = 6,
 	Japanese = 7,
 }
+impl HasCommandOpcode for OSDLanguage {
+	fn opcode() -> u8 { 0x81 }
+}
+
 pub struct OSDTimer(u8);
+impl HasCommandOpcode for OSDTimer {
+	fn opcode() -> u8 { 0x83 }
+}
+
 #[repr(u8)]
 pub enum OSDButtonLock {
 	Unlock = 0,
 	Lock = 1,
 }
+impl HasCommandOpcode for OSDButtonLock {
+	fn opcode() -> u8 { 0x84 }
+}
+
 pub struct VersionFirmware(String);
+impl HasCommandOpcode for VersionFirmware {
+	fn opcode() -> u8 { 0xA0 }
+}
+
 #[repr(u8)]
 pub enum DDCCI {
 	Disabled = 0,
 	Enabled = 1,
 }
+impl HasCommandOpcode for DDCCI {
+	fn opcode() -> u8 { 0xA2 }
+}
+
 #[repr(u8)]
 pub enum LCDConditioning {
 	Disabled = 0,
 	Enabled = 1,
 }
+impl HasCommandOpcode for LCDConditioning {
+	fn opcode() -> u8 { 0xA3 }
+}
+
 
 fn clamp<T : Ord + Sized>(value: T, min: T, max: T) -> Option<T> {
 	if min <= value && value <= max {
