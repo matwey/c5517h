@@ -2,7 +2,7 @@ use std;
 use std::string::String;
 use std::option::Option;
 
-//use protocol::command::{Get,Set,Command,Direction};
+use protocol::command::{Get,HasCommandOpcode};
 
 #[derive(Debug, Clone)]
 pub enum TypesError {
@@ -33,8 +33,20 @@ impl std::error::Error for TypesError {
 
 
 pub struct MonitorName(String);
+impl HasCommandOpcode for MonitorName {
+	fn opcode() -> u8 { 0x01 }
+}
+
 pub struct SerialNumber(String);
+impl HasCommandOpcode for SerialNumber {
+	fn opcode() -> u8 { 0x02 }
+}
+
 pub struct BacklightHours(u16);
+impl HasCommandOpcode for BacklightHours {
+	fn opcode() -> u8 { 0x04 }
+}
+
 #[repr(u8)]
 pub enum PowerState {
 	Off = 0,

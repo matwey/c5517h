@@ -36,10 +36,14 @@ pub enum Direction {
 	Write = 0xEA,
 }
 
+pub trait HasCommandOpcode {
+	fn opcode() -> u8;
+}
+
 pub trait Command {
-	fn opcode(&self) -> u8;
+	fn opcode() -> u8;
+	fn direction() -> Direction;
 	fn length(&self) -> u8;
-	fn direction(&self) -> Direction;
 	fn dump<T: Write>(&self, T) -> Result<usize>;
 }
 
@@ -49,6 +53,13 @@ pub struct Set<T> {
 
 pub struct Get<T> {
 	phantom: PhantomData<T>,
+}
+
+impl<T: HasCommandOpcode> Command for Get<T> {
+	fn opcode() -> u8 { <T as HasCommandOpcode>::opcode() }
+	fn direction() -> Direction { Direction::Read }
+	fn length(&self) -> u8 { 0 }
+	fn dump<U: Write>(&self, w: U) -> Result<usize> { std::result::Result::Ok(0) }
 }
 
 impl<T> Set<T> {
