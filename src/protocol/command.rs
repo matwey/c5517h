@@ -1,4 +1,3 @@
-use std::convert::AsRef;
 use std::io::Write;
 use std::io::sink;
 use std::marker::PhantomData;
@@ -95,7 +94,7 @@ impl<T: NullaryCommand> Command for T {
 	fn opcode() -> u8 { <T as NullaryCommand>::opcode() }
 	fn direction() -> Direction { <T as NullaryCommand>::direction() }
 	fn length(&self) -> u8 { 0 }
-	fn dump<U: Write>(&self, w: U) -> Result<u8> { std::result::Result::Ok(0) }
+	fn dump<U: Write>(&self, _w: U) -> Result<u8> { std::result::Result::Ok(0) }
 }
 
 impl<T: HasCommandOpcode + Serialize> Command for Set<T> {

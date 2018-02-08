@@ -1,4 +1,4 @@
 mod checksum;
-//mod encoder;
+mod encoder;
 mod command;
 mod types;

@@ -1,14 +1,11 @@
 use std;
 use std::io::Write;
+use std::convert::From;
 use std::string::String;
 use std::option::Option;
 
 use protocol::command;
 use protocol::command::{HasCommandOpcode,Serialize};
-
-fn as_code<T, U>(x : &T) -> &U {
-	unsafe { std::mem::transmute::<&T, &U>(x) }
-}
 
 #[derive(Debug, Clone)]
 pub enum TypesError {
@@ -54,22 +51,24 @@ impl HasCommandOpcode for BacklightHours {
 }
 
 #[repr(u8)]
+#[derive(Clone,Copy)]
 pub enum PowerState {
 	Off = 0,
 	On = 1,
 }
-impl PowerState {
-	fn as_code(&self) -> &u8 { as_code(self) }
-}
 impl HasCommandOpcode for PowerState {
 	fn opcode() -> u8 { 0x20 }
 }
+impl From<PowerState> for u8 {
+	fn from(x : PowerState) -> Self { x as u8 }
+}
 impl Serialize for PowerState {
-	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { self.as_code().dump(w) }
-	fn length(&self) -> u8 { self.as_code().length() }
+	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u8::from(*self).dump(w) }
+	fn length(&self) -> u8 { u8::from(*self).length() }
 }
 
 #[repr(u8)]
+#[derive(Clone,Copy)]
 pub enum PowerLED {
 	Off = 0,
 	On = 1,
@@ -77,14 +76,29 @@ pub enum PowerLED {
 impl HasCommandOpcode for PowerLED {
 	fn opcode() -> u8 { 0x21 }
 }
+impl From<PowerLED> for u8 {
+	fn from(x : PowerLED) -> Self { x as u8 }
+}
+impl Serialize for PowerLED {
+	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u8::from(*self).dump(w) }
+	fn length(&self) -> u8 { u8::from(*self).length() }
+}
 
 #[repr(u8)]
+#[derive(Clone,Copy)]
 pub enum PowerUSB {
 	Off = 0,
 	On = 1,
 }
 impl HasCommandOpcode for PowerUSB {
 	fn opcode() -> u8 { 0x22 }
+}
+impl From<PowerUSB> for u8 {
+	fn from(x : PowerUSB) -> Self { x as u8 }
+}
+impl Serialize for PowerUSB {
+	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u8::from(*self).dump(w) }
+	fn length(&self) -> u8 { u8::from(*self).length() }
 }
 
 pub struct Brightness(u8);
@@ -292,5 +306,78 @@ impl OSDTransparency {
 impl OSDTimer {
 	pub fn new(value: u8) -> Result<OSDTimer> {
 		is_clamped(value, 5, 60).map(|x| OSDTimer(x))
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use protocol::encoder::encode;
+	use protocol::command;
+	use protocol::types;
+	use std::io::BufWriter;
+	use std::io::Result;
+	use std::io::Write;
+
+	#[test]
+	fn encode_get_monitor_name() {
+		let mut x = Vec::new();
+		encode(&command::Get::<types::MonitorName>::new(), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x01, 142], &x[..]);
+	}
+
+	#[test]
+	fn encode_get_serial_number() {
+		let mut x = Vec::new();
+		encode(&command::Get::<types::SerialNumber>::new(), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x02, 141], &x[..]);
+	}
+
+	#[test]
+	fn encode_get_backlight_hours() {
+		let mut x = Vec::new();
+		encode(&command::Get::<types::BacklightHours>::new(), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x04, 139], &x[..]);
+	}
+
+	#[test]
+	fn encode_get_power_state() {
+		let mut x = Vec::new();
+		encode(&command::Get::<types::PowerState>::new(), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x20, 175], &x[..]);
+	}
+
+	#[test]
+	fn encode_set_power_state() {
+		let mut x = Vec::new();
+		encode(&command::Set::new(types::PowerState::On), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x20, 0x01, 174], &x[..]);
+	}
+
+	#[test]
+	fn encode_get_power_led() {
+		let mut x = Vec::new();
+		encode(&command::Get::<types::PowerLED>::new(), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x21, 174], &x[..]);
+	}
+
+	#[test]
+	fn encode_set_power_led() {
+		let mut x = Vec::new();
+		encode(&command::Set::new(types::PowerLED::On), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x21, 0x01, 175], &x[..]);
+	}
+
+	#[test]
+	fn encode_get_power_usb() {
+		let mut x = Vec::new();
+		encode(&command::Get::<types::PowerUSB>::new(), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x22, 173], &x[..]);
+	}
+
+	#[test]
+	fn encode_set_power_usb() {
+		let mut x = Vec::new();
+		encode(&command::Set::new(types::PowerUSB::On), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x22, 0x01, 172], &x[..]);
 	}
 }
