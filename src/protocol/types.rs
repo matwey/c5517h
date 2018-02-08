@@ -1,8 +1,14 @@
 use std;
+use std::io::Write;
 use std::string::String;
 use std::option::Option;
 
-use protocol::command::{Get,HasCommandOpcode};
+use protocol::command;
+use protocol::command::{HasCommandOpcode,Serialize};
+
+fn as_code<T, U>(x : &T) -> &U {
+	unsafe { std::mem::transmute::<&T, &U>(x) }
+}
 
 #[derive(Debug, Clone)]
 pub enum TypesError {
@@ -52,8 +58,15 @@ pub enum PowerState {
 	Off = 0,
 	On = 1,
 }
+impl PowerState {
+	fn as_code(&self) -> &u8 { as_code(self) }
+}
 impl HasCommandOpcode for PowerState {
 	fn opcode() -> u8 { 0x20 }
+}
+impl Serialize for PowerState {
+	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { self.as_code().dump(w) }
+	fn length(&self) -> u8 { self.as_code().length() }
 }
 
 #[repr(u8)]
@@ -78,10 +91,18 @@ pub struct Brightness(u8);
 impl HasCommandOpcode for Brightness {
 	fn opcode() -> u8 { 0x30 }
 }
+impl Serialize for Brightness {
+	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { self.0.dump(w) }
+	fn length(&self) -> u8 { self.0.length() }
+}
 
 pub struct Contrast(u8);
 impl HasCommandOpcode for Contrast {
 	fn opcode() -> u8 { 0x31 }
+}
+impl Serialize for Contrast {
+	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { self.0.dump(w) }
+	fn length(&self) -> u8 { self.0.length() }
 }
 
 #[repr(u8)]
@@ -97,6 +118,10 @@ impl HasCommandOpcode for AspectRatio {
 pub struct Sharpness(u8);
 impl HasCommandOpcode for Sharpness {
 	fn opcode() -> u8 { 0x34 }
+}
+impl Serialize for Sharpness {
+	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { self.0.dump(w) }
+	fn length(&self) -> u8 { self.0.length() }
 }
 
 #[repr(u32)]
@@ -166,6 +191,10 @@ pub struct OSDTransparency(u8);
 impl HasCommandOpcode for OSDTransparency {
 	fn opcode() -> u8 { 0x80 }
 }
+impl Serialize for OSDTransparency {
+	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { self.0.dump(w) }
+	fn length(&self) -> u8 { self.0.length() }
+}
 
 #[repr(u8)]
 pub enum OSDLanguage {
@@ -185,6 +214,10 @@ impl HasCommandOpcode for OSDLanguage {
 pub struct OSDTimer(u8);
 impl HasCommandOpcode for OSDTimer {
 	fn opcode() -> u8 { 0x83 }
+}
+impl Serialize for OSDTimer {
+	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { self.0.dump(w) }
+	fn length(&self) -> u8 { self.0.length() }
 }
 
 #[repr(u8)]
