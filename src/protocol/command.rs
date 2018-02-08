@@ -85,6 +85,8 @@ pub struct Get<T> {
 	phantom: PhantomData<T>,
 }
 
+pub struct ResetPower();
+
 impl<T: HasCommandOpcode> NullaryCommand for Get<T> {
 	fn opcode() -> u8 { <T as HasCommandOpcode>::opcode() }
 	fn direction() -> Direction { Direction::Read }
@@ -102,6 +104,11 @@ impl<T: HasCommandOpcode + Serialize> Command for Set<T> {
 	fn direction() -> Direction { Direction::Write }
 	fn length(&self) -> u8 { <T as Serialize>::length(&self.object) }
 	fn dump<U: Write>(&self, w: U) -> Result<u8> { <T as Serialize>::dump(&self.object, w) }
+}
+
+impl NullaryCommand for ResetPower {
+	fn opcode() -> u8 { 0x2F }
+	fn direction() -> Direction { Direction::Write }
 }
 
 impl<T> Set<T> {

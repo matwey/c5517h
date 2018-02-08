@@ -120,6 +120,7 @@ impl Serialize for Contrast {
 }
 
 #[repr(u8)]
+#[derive(Clone,Copy)]
 pub enum AspectRatio {
 	_16X9 = 0,
 	_4X3 = 2,
@@ -127,6 +128,13 @@ pub enum AspectRatio {
 }
 impl HasCommandOpcode for AspectRatio {
 	fn opcode() -> u8 { 0x33 }
+}
+impl From<AspectRatio> for u8 {
+	fn from(x : AspectRatio) -> Self { x as u8 }
+}
+impl Serialize for AspectRatio {
+	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u8::from(*self).dump(w) }
+	fn length(&self) -> u8 { u8::from(*self).length() }
 }
 
 pub struct Sharpness(u8);
@@ -139,19 +147,28 @@ impl Serialize for Sharpness {
 }
 
 #[repr(u32)]
+#[derive(Clone,Copy)]
 pub enum ColorTemperature {
 	_5000K  = 0x01,
 	_5700K  = 0x02,
 	_6500K  = 0x04,
 	_7500K  = 0x08,
 	_9300K  = 0x10,
-	_15000K = 0x20,
+	_10000K = 0x20,
 }
 impl HasCommandOpcode for ColorTemperature {
 	fn opcode() -> u8 { 0x43 }
 }
+impl From<ColorTemperature> for u32 {
+	fn from(x : ColorTemperature) -> Self { x as u32 }
+}
+impl Serialize for ColorTemperature {
+	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u32::from(*self).dump(w) }
+	fn length(&self) -> u8 { u32::from(*self).length() }
+}
 
 #[repr(u8)]
+#[derive(Clone,Copy)]
 pub enum ColorFormat {
 	RGB = 0,
 	YPbPr = 1,
@@ -159,8 +176,16 @@ pub enum ColorFormat {
 impl HasCommandOpcode for ColorFormat {
 	fn opcode() -> u8 { 0x46 }
 }
+impl From<ColorFormat> for u8 {
+	fn from(x : ColorFormat) -> Self { x as u8 }
+}
+impl Serialize for ColorFormat {
+	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u8::from(*self).dump(w) }
+	fn length(&self) -> u8 { u8::from(*self).length() }
+}
 
 #[repr(u32)]
+#[derive(Clone,Copy)]
 pub enum ColorPreset {
 	Standard    = 0x01,
 	Multimedia  = 0x02,
@@ -170,18 +195,38 @@ pub enum ColorPreset {
 impl HasCommandOpcode for ColorPreset {
 	fn opcode() -> u8 { 0x48 }
 }
+impl From<ColorPreset> for u32 {
+	fn from(x : ColorPreset) -> Self { x as u32 }
+}
+impl Serialize for ColorPreset {
+	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u32::from(*self).dump(w) }
+	fn length(&self) -> u8 { u32::from(*self).length() }
+}
 
 pub struct RGB {
 	r : u8,
 	g : u8,
 	b : u8,
 }
+
 #[repr(u8)]
 pub enum CustomColor {
 	Gain(RGB),
 }
+impl Serialize for CustomColor {
+	fn dump<U: Write>(&self, mut w : U) -> command::Result<u8> {
+		match self {
+			&CustomColor::Gain(ref rgb)
+				=> w.write(&[0x00 as u8, rgb.r, rgb.g, rgb.b])
+					.map(|x| x as u8)
+					.map_err(|e| command::CommandError::WriteError{side: e} )
+		}
+	}
+	fn length(&self) -> u8 { 4 }
+}
 
 #[repr(u8)]
+#[derive(Clone,Copy)]
 pub enum AutoSelect {
 	Off = 0,
 	On = 1,
@@ -189,8 +234,16 @@ pub enum AutoSelect {
 impl HasCommandOpcode for AutoSelect {
 	fn opcode() -> u8 { 0x60 }
 }
+impl From<AutoSelect> for u8 {
+	fn from(x : AutoSelect) -> Self { x as u8 }
+}
+impl Serialize for AutoSelect {
+	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u8::from(*self).dump(w) }
+	fn length(&self) -> u8 { u8::from(*self).length() }
+}
 
 #[repr(u32)]
+#[derive(Clone,Copy)]
 pub enum VideoInput {
 	HDMI1 = 0x01,
 	HDMI2 = 0x02,
@@ -199,6 +252,13 @@ pub enum VideoInput {
 }
 impl HasCommandOpcode for VideoInput {
 	fn opcode() -> u8 { 0x62 }
+}
+impl From<VideoInput> for u32 {
+	fn from(x : VideoInput) -> Self { x as u32 }
+}
+impl Serialize for VideoInput {
+	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u32::from(*self).dump(w) }
+	fn length(&self) -> u8 { u32::from(*self).length() }
 }
 
 pub struct OSDTransparency(u8);
@@ -322,7 +382,7 @@ mod tests {
 	fn encode_get_monitor_name() {
 		let mut x = Vec::new();
 		encode(&command::Get::<types::MonitorName>::new(), &mut x).unwrap();
-		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x01, 142], &x[..]);
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x01, 0x8e], &x[..]);
 	}
 
 	#[test]
@@ -379,5 +439,138 @@ mod tests {
 		let mut x = Vec::new();
 		encode(&command::Set::new(types::PowerUSB::On), &mut x).unwrap();
 		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x22, 0x01, 172], &x[..]);
+	}
+
+	#[test]
+	fn encode_reset_power() {
+		let mut x = Vec::new();
+		encode(&command::ResetPower(), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xea, 0x2f, 161], &x[..]);
+	}
+
+	#[test]
+	fn encode_get_brightness() {
+		let mut x = Vec::new();
+		encode(&command::Get::<types::Brightness>::new(), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x30, 191], &x[..]);
+	}
+
+	#[test]
+	fn encode_set_brightness() {
+		let mut x = Vec::new();
+		encode(&command::Set::new(types::Brightness(64)), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x30, 0x40, 255], &x[..]);
+	}
+
+	#[test]
+	fn encode_get_contrast() {
+		let mut x = Vec::new();
+		encode(&command::Get::<types::Contrast>::new(), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x31, 190], &x[..]);
+	}
+
+	#[test]
+	fn encode_set_contrast() {
+		let mut x = Vec::new();
+		encode(&command::Set::new(types::Contrast(64)), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x31, 0x40, 254], &x[..]);
+	}
+
+	#[test]
+	fn encode_get_aspect_ratio() {
+		let mut x = Vec::new();
+		encode(&command::Get::<types::AspectRatio>::new(), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x33, 188], &x[..]);
+	}
+
+	#[test]
+	fn encode_set_aspect_ratio() {
+		let mut x = Vec::new();
+		encode(&command::Set::new(types::AspectRatio::_5X4), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x33, 4, 184], &x[..]);
+	}
+
+	#[test]
+	fn encode_get_sharpness() {
+		let mut x = Vec::new();
+		encode(&command::Get::<types::Sharpness>::new(), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x34, 187], &x[..]);
+	}
+
+	#[test]
+	fn encode_set_sharpness() {
+		let mut x = Vec::new();
+		encode(&command::Set::new(types::Sharpness(42)), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x34, 42, 145], &x[..]);
+	}
+
+	#[test]
+	fn encode_get_color_temp() {
+		let mut x = Vec::new();
+		encode(&command::Get::<types::ColorTemperature>::new(), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x43, 204], &x[..]);
+	}
+
+	#[test]
+	fn encode_set_color_temp() {
+		let mut x = Vec::new();
+		encode(&command::Set::new(types::ColorTemperature::_10000K), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x06, 0xea, 0x43, 0x20, 0x00, 0x00, 0x00, 233], &x[..]);
+	}
+
+	#[test]
+	fn encode_get_input_color_format() {
+		let mut x = Vec::new();
+		encode(&command::Get::<types::ColorFormat>::new(), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x46, 201], &x[..]);
+	}
+
+	#[test]
+	fn encode_set_input_color_format() {
+		let mut x = Vec::new();
+		encode(&command::Set::new(types::ColorFormat::RGB), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x46, 0x00, 201], &x[..]);
+	}
+
+	#[test]
+	fn encode_get_color_preset() {
+		let mut x = Vec::new();
+		encode(&command::Get::<types::ColorPreset>::new(), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x48, 199], &x[..]);
+	}
+
+	#[test]
+	fn encode_set_color_preset() {
+		let mut x = Vec::new();
+		encode(&command::Set::new(types::ColorPreset::ColorTemp), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x06, 0xea, 0x48, 0x20, 0x00, 0x00, 0x00, 226], &x[..]);
+	}
+
+	#[test]
+	fn encode_get_auto_select() {
+		let mut x = Vec::new();
+		encode(&command::Get::<types::AutoSelect>::new(), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x60, 239], &x[..]);
+	}
+
+	#[test]
+	fn encode_set_auto_select() {
+		let mut x = Vec::new();
+		encode(&command::Set::new(types::AutoSelect::On), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x60, 0x01, 238], &x[..]);
+	}
+
+	#[test]
+	fn encode_get_video_input() {
+		let mut x = Vec::new();
+		encode(&command::Get::<types::VideoInput>::new(), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x02, 0xeb, 0x62, 237], &x[..]);
+	}
+
+	#[test]
+	fn encode_set_video_input() {
+		let mut x = Vec::new();
+		encode(&command::Set::new(types::VideoInput::VGA1), &mut x).unwrap();
+		assert_eq!([0x37 as u8, 0x51, 0x06, 0xea, 0x62, 0x40, 0, 0, 0, 168], &x[..]);
 	}
 }
