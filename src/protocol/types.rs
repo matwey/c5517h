@@ -4,8 +4,32 @@ use std::convert::From;
 use std::string::String;
 use std::option::Option;
 
+use nom::IResult;
+use nom::{be_u8, be_u16, be_u32};
+use nom::expr_opt;
+
+use protocol::HasCommandOpcode;
 use protocol::command;
-use protocol::command::{HasCommandOpcode,Serialize};
+use protocol::command::{Serialize};
+use protocol::reply::{Parse};
+
+use num;
+
+fn parse_from_u8<T : From<u8>>(input : &[u8]) -> IResult<&[u8], T> {
+	be_u8(input).map(|(o,x)| (o, T::from(x)))
+}
+
+fn parse_from_u16<T : From<u16>>(input : &[u8]) -> IResult<&[u8], T> {
+	be_u16(input).map(|(o,x)| (o, T::from(x)))
+}
+
+fn parse_enum_from_u8<T : num::FromPrimitive>(input : &[u8]) -> IResult<&[u8], T> {
+	do_parse!(input, raw : be_u8 >> value : expr_opt!(num::FromPrimitive::from_u8(raw)) >> (value))
+}
+
+fn parse_enum_from_u32<T : num::FromPrimitive>(input : &[u8]) -> IResult<&[u8], T> {
+	do_parse!(input, raw : be_u32 >> value : expr_opt!(num::FromPrimitive::from_u32(raw)) >> (value))
+}
 
 #[derive(Debug, Clone)]
 pub enum TypesError {
@@ -49,9 +73,15 @@ pub struct BacklightHours(u16);
 impl HasCommandOpcode for BacklightHours {
 	fn opcode() -> u8 { 0x04 }
 }
+impl From<u16> for BacklightHours {
+	fn from(x : u16) -> Self { Self(x) }
+}
+impl Parse for BacklightHours {
+	fn parse(input: &[u8]) -> IResult<&[u8], Self> { parse_from_u16(input) }
+}
 
 #[repr(u8)]
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug,FromPrimitive,PartialEq)]
 pub enum PowerState {
 	Off = 0,
 	On = 1,
@@ -66,9 +96,12 @@ impl Serialize for PowerState {
 	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u8::from(*self).dump(w) }
 	fn length(&self) -> u8 { u8::from(*self).length() }
 }
+impl Parse for PowerState {
+	fn parse(input: &[u8]) -> IResult<&[u8], Self> { parse_enum_from_u8(input) }
+}
 
 #[repr(u8)]
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug,FromPrimitive,PartialEq)]
 pub enum PowerLED {
 	Off = 0,
 	On = 1,
@@ -83,9 +116,12 @@ impl Serialize for PowerLED {
 	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u8::from(*self).dump(w) }
 	fn length(&self) -> u8 { u8::from(*self).length() }
 }
+impl Parse for PowerLED {
+	fn parse(input: &[u8]) -> IResult<&[u8], Self> { parse_enum_from_u8(input) }
+}
 
 #[repr(u8)]
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug,FromPrimitive,PartialEq)]
 pub enum PowerUSB {
 	Off = 0,
 	On = 1,
@@ -100,7 +136,11 @@ impl Serialize for PowerUSB {
 	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u8::from(*self).dump(w) }
 	fn length(&self) -> u8 { u8::from(*self).length() }
 }
+impl Parse for PowerUSB {
+	fn parse(input: &[u8]) -> IResult<&[u8], Self> { parse_enum_from_u8(input) }
+}
 
+#[derive(Debug,PartialEq)]
 pub struct Brightness(u8);
 impl HasCommandOpcode for Brightness {
 	fn opcode() -> u8 { 0x30 }
@@ -109,7 +149,14 @@ impl Serialize for Brightness {
 	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { self.0.dump(w) }
 	fn length(&self) -> u8 { self.0.length() }
 }
+impl From<u8> for Brightness {
+	fn from(x : u8) -> Self { Self(x) }
+}
+impl Parse for Brightness {
+	fn parse(input: &[u8]) -> IResult<&[u8], Self> { parse_from_u8(input) }
+}
 
+#[derive(Debug,PartialEq)]
 pub struct Contrast(u8);
 impl HasCommandOpcode for Contrast {
 	fn opcode() -> u8 { 0x31 }
@@ -118,9 +165,15 @@ impl Serialize for Contrast {
 	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { self.0.dump(w) }
 	fn length(&self) -> u8 { self.0.length() }
 }
+impl From<u8> for Contrast {
+	fn from(x : u8) -> Self { Self(x) }
+}
+impl Parse for Contrast {
+	fn parse(input: &[u8]) -> IResult<&[u8], Self> { parse_from_u8(input) }
+}
 
 #[repr(u8)]
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug,PartialEq,FromPrimitive)]
 pub enum AspectRatio {
 	_16X9 = 0,
 	_4X3 = 2,
@@ -136,7 +189,11 @@ impl Serialize for AspectRatio {
 	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u8::from(*self).dump(w) }
 	fn length(&self) -> u8 { u8::from(*self).length() }
 }
+impl Parse for AspectRatio {
+	fn parse(input: &[u8]) -> IResult<&[u8], Self> { parse_enum_from_u8(input) }
+}
 
+#[derive(Debug,PartialEq)]
 pub struct Sharpness(u8);
 impl HasCommandOpcode for Sharpness {
 	fn opcode() -> u8 { 0x34 }
@@ -144,6 +201,12 @@ impl HasCommandOpcode for Sharpness {
 impl Serialize for Sharpness {
 	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { self.0.dump(w) }
 	fn length(&self) -> u8 { self.0.length() }
+}
+impl From<u8> for Sharpness {
+	fn from(x : u8) -> Self { Self(x) }
+}
+impl Parse for Sharpness {
+	fn parse(input: &[u8]) -> IResult<&[u8], Self> { parse_from_u8(input) }
 }
 
 #[repr(u32)]
@@ -372,6 +435,8 @@ impl OSDTimer {
 #[cfg(test)]
 mod tests {
 	use protocol::encoder::encode;
+	use protocol::decoder::decode;
+	use protocol::reply;
 	use protocol::command;
 	use protocol::types;
 	use std::io::BufWriter;
@@ -407,10 +472,22 @@ mod tests {
 	}
 
 	#[test]
+	fn decode_get_power_state() {
+		let x = [0x6f as u8, 0x37, 0x04, 0x02, 0x00, 0x20, 0x01, 127];
+		assert_eq!(types::PowerState::On, decode(&x).unwrap());
+	}
+
+	#[test]
 	fn encode_set_power_state() {
 		let mut x = Vec::new();
 		encode(&command::Set::new(types::PowerState::On), &mut x).unwrap();
 		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x20, 0x01, 174], &x[..]);
+	}
+
+	#[test]
+	fn decode_set_power_state() {
+		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x20, 121];
+		decode::<reply::NullaryReply<types::PowerState>>(&x).unwrap();
 	}
 
 	#[test]
@@ -421,10 +498,22 @@ mod tests {
 	}
 
 	#[test]
+	fn decode_get_power_led() {
+		let x = [0x6f as u8, 0x37, 0x04, 0x02, 0x00, 0x21, 0x01, 126];
+		assert_eq!(types::PowerLED::On, decode(&x).unwrap());
+	}
+
+	#[test]
 	fn encode_set_power_led() {
 		let mut x = Vec::new();
 		encode(&command::Set::new(types::PowerLED::On), &mut x).unwrap();
 		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x21, 0x01, 175], &x[..]);
+	}
+
+	#[test]
+	fn decode_set_power_led() {
+		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x21, 120];
+		decode::<reply::NullaryReply<types::PowerLED>>(&x).unwrap();
 	}
 
 	#[test]
@@ -435,10 +524,22 @@ mod tests {
 	}
 
 	#[test]
+	fn decode_get_power_usb() {
+		let x = [0x6f as u8, 0x37, 0x04, 0x02, 0x00, 0x22, 0x01, 125];
+		assert_eq!(types::PowerUSB::On, decode(&x).unwrap());
+	}
+
+	#[test]
 	fn encode_set_power_usb() {
 		let mut x = Vec::new();
 		encode(&command::Set::new(types::PowerUSB::On), &mut x).unwrap();
 		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x22, 0x01, 172], &x[..]);
+	}
+
+	#[test]
+	fn decode_set_power_usb() {
+		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x22, 123];
+		decode::<reply::NullaryReply<types::PowerUSB>>(&x).unwrap();
 	}
 
 	#[test]
@@ -456,10 +557,22 @@ mod tests {
 	}
 
 	#[test]
+	fn decode_get_brightness() {
+		let x = [0x6f as u8, 0x37, 0x04, 0x02, 0x00, 0x30, 0x42, 44];
+		assert_eq!(types::Brightness(0x42 as u8), decode(&x).unwrap());
+	}
+
+	#[test]
 	fn encode_set_brightness() {
 		let mut x = Vec::new();
 		encode(&command::Set::new(types::Brightness(64)), &mut x).unwrap();
 		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x30, 0x40, 255], &x[..]);
+	}
+
+	#[test]
+	fn decode_set_brightness() {
+		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x30, 105];
+		decode::<reply::NullaryReply<types::Brightness>>(&x).unwrap();
 	}
 
 	#[test]
@@ -470,10 +583,22 @@ mod tests {
 	}
 
 	#[test]
+	fn decode_get_contrast() {
+		let x = [0x6f as u8, 0x37, 0x04, 0x02, 0x00, 0x31, 0x42, 45];
+		assert_eq!(types::Contrast(0x42 as u8), decode(&x).unwrap());
+	}
+
+	#[test]
 	fn encode_set_contrast() {
 		let mut x = Vec::new();
 		encode(&command::Set::new(types::Contrast(64)), &mut x).unwrap();
 		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x31, 0x40, 254], &x[..]);
+	}
+
+	#[test]
+	fn decode_set_contrast() {
+		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x31, 104];
+		decode::<reply::NullaryReply<types::Contrast>>(&x).unwrap();
 	}
 
 	#[test]
@@ -484,10 +609,22 @@ mod tests {
 	}
 
 	#[test]
+	fn decode_get_aspect_ratio() {
+		let x = [0x6f as u8, 0x37, 0x04, 0x02, 0x00, 0x33, 0x4, 105];
+		assert_eq!(types::AspectRatio::_5X4, decode(&x).unwrap());
+	}
+
+	#[test]
 	fn encode_set_aspect_ratio() {
 		let mut x = Vec::new();
 		encode(&command::Set::new(types::AspectRatio::_5X4), &mut x).unwrap();
 		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x33, 4, 184], &x[..]);
+	}
+
+	#[test]
+	fn decode_set_aspect_ratio() {
+		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x33, 106];
+		decode::<reply::NullaryReply<types::AspectRatio>>(&x).unwrap();
 	}
 
 	#[test]
@@ -498,10 +635,22 @@ mod tests {
 	}
 
 	#[test]
+	fn decode_get_sharpness() {
+		let x = [0x6f as u8, 0x37, 0x04, 0x02, 0x00, 0x34, 0x4, 110];
+		assert_eq!(types::Sharpness(4), decode(&x).unwrap());
+	}
+
+	#[test]
 	fn encode_set_sharpness() {
 		let mut x = Vec::new();
 		encode(&command::Set::new(types::Sharpness(42)), &mut x).unwrap();
 		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x34, 42, 145], &x[..]);
+	}
+
+	#[test]
+	fn decode_set_sharpness() {
+		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x34, 109];
+		decode::<reply::NullaryReply<types::Sharpness>>(&x).unwrap();
 	}
 
 	#[test]
@@ -519,6 +668,12 @@ mod tests {
 	}
 
 	#[test]
+	fn decode_set_color_temp() {
+		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x43, 26];
+		decode::<reply::NullaryReply<types::ColorTemperature>>(&x).unwrap();
+	}
+
+	#[test]
 	fn encode_get_input_color_format() {
 		let mut x = Vec::new();
 		encode(&command::Get::<types::ColorFormat>::new(), &mut x).unwrap();
@@ -530,6 +685,12 @@ mod tests {
 		let mut x = Vec::new();
 		encode(&command::Set::new(types::ColorFormat::RGB), &mut x).unwrap();
 		assert_eq!([0x37 as u8, 0x51, 0x03, 0xea, 0x46, 0x00, 201], &x[..]);
+	}
+
+	#[test]
+	fn decode_set_input_color_format() {
+		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x46, 31];
+		decode::<reply::NullaryReply<types::ColorFormat>>(&x).unwrap();
 	}
 
 	#[test]
@@ -547,6 +708,12 @@ mod tests {
 	}
 
 	#[test]
+	fn decode_set_color_preset() {
+		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x48, 17];
+		decode::<reply::NullaryReply<types::ColorPreset>>(&x).unwrap();
+	}
+
+	#[test]
 	fn encode_get_auto_select() {
 		let mut x = Vec::new();
 		encode(&command::Get::<types::AutoSelect>::new(), &mut x).unwrap();
@@ -561,6 +728,12 @@ mod tests {
 	}
 
 	#[test]
+	fn decode_set_auto_select() {
+		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x60, 57];
+		decode::<reply::NullaryReply<types::AutoSelect>>(&x).unwrap();
+	}
+
+	#[test]
 	fn encode_get_video_input() {
 		let mut x = Vec::new();
 		encode(&command::Get::<types::VideoInput>::new(), &mut x).unwrap();
@@ -572,5 +745,11 @@ mod tests {
 		let mut x = Vec::new();
 		encode(&command::Set::new(types::VideoInput::VGA1), &mut x).unwrap();
 		assert_eq!([0x37 as u8, 0x51, 0x06, 0xea, 0x62, 0x40, 0, 0, 0, 168], &x[..]);
+	}
+
+	#[test]
+	fn decode_set_video_input() {
+		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x62, 59];
+		decode::<reply::NullaryReply<types::VideoInput>>(&x).unwrap();
 	}
 }

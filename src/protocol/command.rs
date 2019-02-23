@@ -3,6 +3,8 @@ use std::io::sink;
 use std::marker::PhantomData;
 use std;
 
+use super::HasCommandOpcode;
+
 #[derive(Debug)]
 pub enum CommandError {
 	WriteError{side : std::io::Error, },
@@ -35,10 +37,6 @@ impl std::error::Error for CommandError {
 pub enum Direction {
 	Read = 0xEB,
 	Write = 0xEA,
-}
-
-pub trait HasCommandOpcode {
-	fn opcode() -> u8;
 }
 
 pub trait Command {
