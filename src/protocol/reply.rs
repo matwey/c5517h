@@ -6,8 +6,6 @@ use std::marker::Sized;
 use nom::IResult;
 
 use super::HasCommandOpcode;
-use super::command::{NullaryCommand, ResetPower};
-
 #[repr(u8)]
 #[derive(FromPrimitive, Debug, Clone)]
 pub enum ResultCode {

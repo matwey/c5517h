@@ -1,4 +1,5 @@
 use std;
+use std::io;
 use std::io::Write;
 use std::convert::From;
 use std::string::String;
@@ -9,7 +10,6 @@ use nom::{be_u8, be_u16, be_u32};
 use nom::expr_opt;
 
 use protocol::HasCommandOpcode;
-use protocol::command;
 use protocol::command::{Serialize};
 use protocol::reply::{Parse};
 
@@ -36,7 +36,7 @@ pub enum TypesError {
 	OutOfRange{ value : u8, min : u8, max : u8, },
 }
 
-pub type Result<T> = std::result::Result<T, TypesError>;
+type Result<T> = std::result::Result<T, TypesError>;
 
 impl std::fmt::Display for TypesError {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -93,7 +93,7 @@ impl From<PowerState> for u8 {
 	fn from(x : PowerState) -> Self { x as u8 }
 }
 impl Serialize for PowerState {
-	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u8::from(*self).dump(w) }
+	fn dump<U: Write>(&self, w : U) -> io::Result<u8> { u8::from(*self).dump(w) }
 	fn length(&self) -> u8 { u8::from(*self).length() }
 }
 impl Parse for PowerState {
@@ -113,7 +113,7 @@ impl From<PowerLED> for u8 {
 	fn from(x : PowerLED) -> Self { x as u8 }
 }
 impl Serialize for PowerLED {
-	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u8::from(*self).dump(w) }
+	fn dump<U: Write>(&self, w : U) -> io::Result<u8> { u8::from(*self).dump(w) }
 	fn length(&self) -> u8 { u8::from(*self).length() }
 }
 impl Parse for PowerLED {
@@ -133,7 +133,7 @@ impl From<PowerUSB> for u8 {
 	fn from(x : PowerUSB) -> Self { x as u8 }
 }
 impl Serialize for PowerUSB {
-	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u8::from(*self).dump(w) }
+	fn dump<U: Write>(&self, w : U) -> io::Result<u8> { u8::from(*self).dump(w) }
 	fn length(&self) -> u8 { u8::from(*self).length() }
 }
 impl Parse for PowerUSB {
@@ -146,7 +146,7 @@ impl HasCommandOpcode for Brightness {
 	fn opcode() -> u8 { 0x30 }
 }
 impl Serialize for Brightness {
-	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { self.0.dump(w) }
+	fn dump<U: Write>(&self, w : U) -> io::Result<u8> { self.0.dump(w) }
 	fn length(&self) -> u8 { self.0.length() }
 }
 impl From<u8> for Brightness {
@@ -162,7 +162,7 @@ impl HasCommandOpcode for Contrast {
 	fn opcode() -> u8 { 0x31 }
 }
 impl Serialize for Contrast {
-	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { self.0.dump(w) }
+	fn dump<U: Write>(&self, w : U) -> io::Result<u8> { self.0.dump(w) }
 	fn length(&self) -> u8 { self.0.length() }
 }
 impl From<u8> for Contrast {
@@ -186,7 +186,7 @@ impl From<AspectRatio> for u8 {
 	fn from(x : AspectRatio) -> Self { x as u8 }
 }
 impl Serialize for AspectRatio {
-	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u8::from(*self).dump(w) }
+	fn dump<U: Write>(&self, w : U) -> io::Result<u8> { u8::from(*self).dump(w) }
 	fn length(&self) -> u8 { u8::from(*self).length() }
 }
 impl Parse for AspectRatio {
@@ -199,7 +199,7 @@ impl HasCommandOpcode for Sharpness {
 	fn opcode() -> u8 { 0x34 }
 }
 impl Serialize for Sharpness {
-	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { self.0.dump(w) }
+	fn dump<U: Write>(&self, w : U) -> io::Result<u8> { self.0.dump(w) }
 	fn length(&self) -> u8 { self.0.length() }
 }
 impl From<u8> for Sharpness {
@@ -226,7 +226,7 @@ impl From<ColorTemperature> for u32 {
 	fn from(x : ColorTemperature) -> Self { x as u32 }
 }
 impl Serialize for ColorTemperature {
-	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u32::from(*self).dump(w) }
+	fn dump<U: Write>(&self, w : U) -> io::Result<u8> { u32::from(*self).dump(w) }
 	fn length(&self) -> u8 { u32::from(*self).length() }
 }
 
@@ -243,7 +243,7 @@ impl From<ColorFormat> for u8 {
 	fn from(x : ColorFormat) -> Self { x as u8 }
 }
 impl Serialize for ColorFormat {
-	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u8::from(*self).dump(w) }
+	fn dump<U: Write>(&self, w : U) -> io::Result<u8> { u8::from(*self).dump(w) }
 	fn length(&self) -> u8 { u8::from(*self).length() }
 }
 
@@ -262,7 +262,7 @@ impl From<ColorPreset> for u32 {
 	fn from(x : ColorPreset) -> Self { x as u32 }
 }
 impl Serialize for ColorPreset {
-	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u32::from(*self).dump(w) }
+	fn dump<U: Write>(&self, w : U) -> io::Result<u8> { u32::from(*self).dump(w) }
 	fn length(&self) -> u8 { u32::from(*self).length() }
 }
 
@@ -277,12 +277,10 @@ pub enum CustomColor {
 	Gain(RGB),
 }
 impl Serialize for CustomColor {
-	fn dump<U: Write>(&self, mut w : U) -> command::Result<u8> {
+	fn dump<U: Write>(&self, mut w : U) -> io::Result<u8> {
 		match self {
 			&CustomColor::Gain(ref rgb)
-				=> w.write(&[0x00 as u8, rgb.r, rgb.g, rgb.b])
-					.map(|x| x as u8)
-					.map_err(|e| command::CommandError::WriteError{side: e} )
+				=> w.write(&[0x00 as u8, rgb.r, rgb.g, rgb.b]).map(|x| x as u8)
 		}
 	}
 	fn length(&self) -> u8 { 4 }
@@ -301,7 +299,7 @@ impl From<AutoSelect> for u8 {
 	fn from(x : AutoSelect) -> Self { x as u8 }
 }
 impl Serialize for AutoSelect {
-	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u8::from(*self).dump(w) }
+	fn dump<U: Write>(&self, w : U) -> io::Result<u8> { u8::from(*self).dump(w) }
 	fn length(&self) -> u8 { u8::from(*self).length() }
 }
 
@@ -320,7 +318,7 @@ impl From<VideoInput> for u32 {
 	fn from(x : VideoInput) -> Self { x as u32 }
 }
 impl Serialize for VideoInput {
-	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { u32::from(*self).dump(w) }
+	fn dump<U: Write>(&self, w : U) -> io::Result<u8> { u32::from(*self).dump(w) }
 	fn length(&self) -> u8 { u32::from(*self).length() }
 }
 
@@ -329,7 +327,7 @@ impl HasCommandOpcode for OSDTransparency {
 	fn opcode() -> u8 { 0x80 }
 }
 impl Serialize for OSDTransparency {
-	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { self.0.dump(w) }
+	fn dump<U: Write>(&self, w : U) -> io::Result<u8> { self.0.dump(w) }
 	fn length(&self) -> u8 { self.0.length() }
 }
 
@@ -353,7 +351,7 @@ impl HasCommandOpcode for OSDTimer {
 	fn opcode() -> u8 { 0x83 }
 }
 impl Serialize for OSDTimer {
-	fn dump<U: Write>(&self, w : U) -> command::Result<u8> { self.0.dump(w) }
+	fn dump<U: Write>(&self, w : U) -> io::Result<u8> { self.0.dump(w) }
 	fn length(&self) -> u8 { self.0.length() }
 }
 
