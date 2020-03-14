@@ -6,8 +6,9 @@ use std::string::String;
 use std::option::Option;
 
 use nom::IResult;
-use nom::{be_u8, be_u16, be_u32};
-use nom::expr_opt;
+use nom::error::ParseError;
+use nom::number::streaming::{be_u8, be_u16, be_u32};
+use nom::combinator::{map, map_opt};
 
 use protocol::HasCommandOpcode;
 use protocol::command::{Serialize};
@@ -15,20 +16,20 @@ use protocol::reply::{Parse};
 
 use num;
 
-fn parse_from_u8<T : From<u8>>(input : &[u8]) -> IResult<&[u8], T> {
-	be_u8(input).map(|(o,x)| (o, T::from(x)))
+fn parse_from_u8<'a, T : From<u8>, E : ParseError<&'a [u8]>>(input : &'a [u8]) -> IResult<&'a [u8], T, E> {
+	map(be_u8, T::from)(input)
 }
 
-fn parse_from_u16<T : From<u16>>(input : &[u8]) -> IResult<&[u8], T> {
-	be_u16(input).map(|(o,x)| (o, T::from(x)))
+fn parse_from_u16<'a, T : From<u16>, E : ParseError<&'a [u8]>>(input : &'a [u8]) -> IResult<&'a [u8], T, E> {
+	map(be_u16, T::from)(input)
 }
 
-fn parse_enum_from_u8<T : num::FromPrimitive>(input : &[u8]) -> IResult<&[u8], T> {
-	do_parse!(input, raw : be_u8 >> value : expr_opt!(num::FromPrimitive::from_u8(raw)) >> (value))
+fn parse_enum_from_u8<'a, T : num::FromPrimitive, E : ParseError<&'a [u8]>>(input : &'a [u8]) -> IResult<&'a [u8], T, E> {
+	map_opt(be_u8, num::FromPrimitive::from_u8)(input)
 }
 
-fn parse_enum_from_u32<T : num::FromPrimitive>(input : &[u8]) -> IResult<&[u8], T> {
-	do_parse!(input, raw : be_u32 >> value : expr_opt!(num::FromPrimitive::from_u32(raw)) >> (value))
+fn parse_enum_from_u32<'a, T : num::FromPrimitive, E : ParseError<&'a [u8]>>(input : &'a [u8]) -> IResult<&'a [u8], T, E> {
+	map_opt(be_u32, num::FromPrimitive::from_u32)(input)
 }
 
 #[derive(Debug, Clone)]
@@ -53,7 +54,7 @@ impl std::error::Error for TypesError {
 			&TypesError::OutOfRange{..} => "out of range error",
 		}
 	}
-	fn cause(&self) -> Option<&std::error::Error> {
+	fn cause(&self) -> Option<&dyn std::error::Error> {
 		None
 	}
 }
@@ -77,7 +78,7 @@ impl From<u16> for BacklightHours {
 	fn from(x : u16) -> Self { Self(x) }
 }
 impl Parse for BacklightHours {
-	fn parse(input: &[u8]) -> IResult<&[u8], Self> { parse_from_u16(input) }
+	fn parse<'a, E : ParseError<&'a [u8]>>(input: &'a [u8]) -> IResult<&'a [u8], Self, E> { parse_from_u16(input) }
 }
 
 #[repr(u8)]
@@ -97,7 +98,7 @@ impl Serialize for PowerState {
 	fn length(&self) -> u8 { u8::from(*self).length() }
 }
 impl Parse for PowerState {
-	fn parse(input: &[u8]) -> IResult<&[u8], Self> { parse_enum_from_u8(input) }
+	fn parse<'a, E : ParseError<&'a [u8]>>(input: &'a [u8]) -> IResult<&'a [u8], Self, E> { parse_enum_from_u8(input) }
 }
 
 #[repr(u8)]
@@ -117,7 +118,7 @@ impl Serialize for PowerLED {
 	fn length(&self) -> u8 { u8::from(*self).length() }
 }
 impl Parse for PowerLED {
-	fn parse(input: &[u8]) -> IResult<&[u8], Self> { parse_enum_from_u8(input) }
+	fn parse<'a, E : ParseError<&'a [u8]>>(input: &'a [u8]) -> IResult<&'a [u8], Self, E> { parse_enum_from_u8(input) }
 }
 
 #[repr(u8)]
@@ -137,7 +138,7 @@ impl Serialize for PowerUSB {
 	fn length(&self) -> u8 { u8::from(*self).length() }
 }
 impl Parse for PowerUSB {
-	fn parse(input: &[u8]) -> IResult<&[u8], Self> { parse_enum_from_u8(input) }
+	fn parse<'a, E : ParseError<&'a [u8]>>(input: &'a [u8]) -> IResult<&'a [u8], Self, E> { parse_enum_from_u8(input) }
 }
 
 #[derive(Debug,PartialEq)]
@@ -153,7 +154,7 @@ impl From<u8> for Brightness {
 	fn from(x : u8) -> Self { Self(x) }
 }
 impl Parse for Brightness {
-	fn parse(input: &[u8]) -> IResult<&[u8], Self> { parse_from_u8(input) }
+	fn parse<'a, E : ParseError<&'a [u8]>>(input: &'a [u8]) -> IResult<&'a [u8], Self, E> { parse_from_u8(input) }
 }
 
 #[derive(Debug,PartialEq)]
@@ -169,7 +170,7 @@ impl From<u8> for Contrast {
 	fn from(x : u8) -> Self { Self(x) }
 }
 impl Parse for Contrast {
-	fn parse(input: &[u8]) -> IResult<&[u8], Self> { parse_from_u8(input) }
+	fn parse<'a, E : ParseError<&'a [u8]>>(input: &'a [u8]) -> IResult<&'a [u8], Self, E> { parse_from_u8(input) }
 }
 
 #[repr(u8)]
@@ -190,7 +191,7 @@ impl Serialize for AspectRatio {
 	fn length(&self) -> u8 { u8::from(*self).length() }
 }
 impl Parse for AspectRatio {
-	fn parse(input: &[u8]) -> IResult<&[u8], Self> { parse_enum_from_u8(input) }
+	fn parse<'a, E : ParseError<&'a [u8]>>(input: &'a [u8]) -> IResult<&'a [u8], Self, E> { parse_enum_from_u8(input) }
 }
 
 #[derive(Debug,PartialEq)]
@@ -206,11 +207,11 @@ impl From<u8> for Sharpness {
 	fn from(x : u8) -> Self { Self(x) }
 }
 impl Parse for Sharpness {
-	fn parse(input: &[u8]) -> IResult<&[u8], Self> { parse_from_u8(input) }
+	fn parse<'a, E : ParseError<&'a [u8]>>(input: &'a [u8]) -> IResult<&'a [u8], Self, E> { parse_from_u8(input) }
 }
 
 #[repr(u32)]
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug,PartialEq)]
 pub enum ColorTemperature {
 	_5000K  = 0x01,
 	_5700K  = 0x02,
@@ -231,7 +232,7 @@ impl Serialize for ColorTemperature {
 }
 
 #[repr(u8)]
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug,PartialEq)]
 pub enum ColorFormat {
 	RGB = 0,
 	YPbPr = 1,
@@ -248,7 +249,7 @@ impl Serialize for ColorFormat {
 }
 
 #[repr(u32)]
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug,PartialEq)]
 pub enum ColorPreset {
 	Standard    = 0x01,
 	Multimedia  = 0x02,
@@ -287,7 +288,7 @@ impl Serialize for CustomColor {
 }
 
 #[repr(u8)]
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug,PartialEq)]
 pub enum AutoSelect {
 	Off = 0,
 	On = 1,
@@ -304,7 +305,7 @@ impl Serialize for AutoSelect {
 }
 
 #[repr(u32)]
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug,PartialEq)]
 pub enum VideoInput {
 	HDMI1 = 0x01,
 	HDMI2 = 0x02,
@@ -433,12 +434,13 @@ impl OSDTimer {
 #[cfg(test)]
 mod tests {
 	use protocol::encoder::encode;
-	use protocol::decoder::decode;
+	use protocol::decoder;
+	use protocol::decoder::{decode, Result};
 	use protocol::reply;
+	use protocol::reply::NullaryReply;
 	use protocol::command;
 	use protocol::types;
 	use std::io::BufWriter;
-	use std::io::Result;
 	use std::io::Write;
 
 	#[test]
@@ -472,7 +474,7 @@ mod tests {
 	#[test]
 	fn decode_get_power_state() {
 		let x = [0x6f as u8, 0x37, 0x04, 0x02, 0x00, 0x20, 0x01, 127];
-		assert_eq!(types::PowerState::On, decode(&x).unwrap());
+		assert_eq!(Result::<_>::Ok(types::PowerState::On), decode(&x));
 	}
 
 	#[test]
@@ -485,7 +487,7 @@ mod tests {
 	#[test]
 	fn decode_set_power_state() {
 		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x20, 121];
-		decode::<reply::NullaryReply<types::PowerState>>(&x).unwrap();
+		assert_eq!(Result::<_>::Ok(NullaryReply::<types::PowerState>::default()), decode(&x));
 	}
 
 	#[test]
@@ -498,7 +500,7 @@ mod tests {
 	#[test]
 	fn decode_get_power_led() {
 		let x = [0x6f as u8, 0x37, 0x04, 0x02, 0x00, 0x21, 0x01, 126];
-		assert_eq!(types::PowerLED::On, decode(&x).unwrap());
+		assert_eq!(Result::<_>::Ok(types::PowerLED::On), decode(&x));
 	}
 
 	#[test]
@@ -511,7 +513,7 @@ mod tests {
 	#[test]
 	fn decode_set_power_led() {
 		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x21, 120];
-		decode::<reply::NullaryReply<types::PowerLED>>(&x).unwrap();
+		assert_eq!(Result::<_>::Ok(NullaryReply::<types::PowerLED>::default()), decode(&x));
 	}
 
 	#[test]
@@ -524,7 +526,7 @@ mod tests {
 	#[test]
 	fn decode_get_power_usb() {
 		let x = [0x6f as u8, 0x37, 0x04, 0x02, 0x00, 0x22, 0x01, 125];
-		assert_eq!(types::PowerUSB::On, decode(&x).unwrap());
+		assert_eq!(Result::<_>::Ok(types::PowerUSB::On), decode(&x));
 	}
 
 	#[test]
@@ -537,7 +539,7 @@ mod tests {
 	#[test]
 	fn decode_set_power_usb() {
 		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x22, 123];
-		decode::<reply::NullaryReply<types::PowerUSB>>(&x).unwrap();
+		assert_eq!(Result::<_>::Ok(NullaryReply::<types::PowerUSB>::default()), decode(&x));
 	}
 
 	#[test]
@@ -557,7 +559,7 @@ mod tests {
 	#[test]
 	fn decode_get_brightness() {
 		let x = [0x6f as u8, 0x37, 0x04, 0x02, 0x00, 0x30, 0x42, 44];
-		assert_eq!(types::Brightness(0x42 as u8), decode(&x).unwrap());
+		assert_eq!(Result::<_>::Ok(types::Brightness(0x42 as u8)), decode(&x));
 	}
 
 	#[test]
@@ -570,7 +572,7 @@ mod tests {
 	#[test]
 	fn decode_set_brightness() {
 		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x30, 105];
-		decode::<reply::NullaryReply<types::Brightness>>(&x).unwrap();
+		assert_eq!(Result::<_>::Ok(NullaryReply::<types::Brightness>::default()), decode(&x));
 	}
 
 	#[test]
@@ -583,7 +585,7 @@ mod tests {
 	#[test]
 	fn decode_get_contrast() {
 		let x = [0x6f as u8, 0x37, 0x04, 0x02, 0x00, 0x31, 0x42, 45];
-		assert_eq!(types::Contrast(0x42 as u8), decode(&x).unwrap());
+		assert_eq!(Result::<_>::Ok(types::Contrast(0x42 as u8)), decode(&x));
 	}
 
 	#[test]
@@ -596,7 +598,7 @@ mod tests {
 	#[test]
 	fn decode_set_contrast() {
 		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x31, 104];
-		decode::<reply::NullaryReply<types::Contrast>>(&x).unwrap();
+		assert_eq!(Result::<_>::Ok(NullaryReply::<types::Contrast>::default()), decode(&x));
 	}
 
 	#[test]
@@ -609,7 +611,7 @@ mod tests {
 	#[test]
 	fn decode_get_aspect_ratio() {
 		let x = [0x6f as u8, 0x37, 0x04, 0x02, 0x00, 0x33, 0x4, 105];
-		assert_eq!(types::AspectRatio::_5X4, decode(&x).unwrap());
+		assert_eq!(Result::<_>::Ok(types::AspectRatio::_5X4), decode(&x));
 	}
 
 	#[test]
@@ -622,7 +624,7 @@ mod tests {
 	#[test]
 	fn decode_set_aspect_ratio() {
 		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x33, 106];
-		decode::<reply::NullaryReply<types::AspectRatio>>(&x).unwrap();
+		assert_eq!(Result::<_>::Ok(NullaryReply::<types::AspectRatio>::default()), decode(&x));
 	}
 
 	#[test]
@@ -635,7 +637,7 @@ mod tests {
 	#[test]
 	fn decode_get_sharpness() {
 		let x = [0x6f as u8, 0x37, 0x04, 0x02, 0x00, 0x34, 0x4, 110];
-		assert_eq!(types::Sharpness(4), decode(&x).unwrap());
+		assert_eq!(Result::<_>::Ok(types::Sharpness(4)), decode(&x));
 	}
 
 	#[test]
@@ -648,7 +650,7 @@ mod tests {
 	#[test]
 	fn decode_set_sharpness() {
 		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x34, 109];
-		decode::<reply::NullaryReply<types::Sharpness>>(&x).unwrap();
+		assert_eq!(Result::<_>::Ok(NullaryReply::<types::Sharpness>::default()), decode(&x));
 	}
 
 	#[test]
@@ -668,7 +670,7 @@ mod tests {
 	#[test]
 	fn decode_set_color_temp() {
 		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x43, 26];
-		decode::<reply::NullaryReply<types::ColorTemperature>>(&x).unwrap();
+		assert_eq!(Result::<_>::Ok(NullaryReply::<types::ColorTemperature>::default()), decode(&x));
 	}
 
 	#[test]
@@ -688,7 +690,7 @@ mod tests {
 	#[test]
 	fn decode_set_input_color_format() {
 		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x46, 31];
-		decode::<reply::NullaryReply<types::ColorFormat>>(&x).unwrap();
+		assert_eq!(Result::<_>::Ok(NullaryReply::<types::ColorFormat>::default()), decode(&x));
 	}
 
 	#[test]
@@ -708,7 +710,7 @@ mod tests {
 	#[test]
 	fn decode_set_color_preset() {
 		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x48, 17];
-		decode::<reply::NullaryReply<types::ColorPreset>>(&x).unwrap();
+		assert_eq!(Result::<_>::Ok(NullaryReply::<types::ColorPreset>::default()), decode(&x));
 	}
 
 	#[test]
@@ -728,7 +730,7 @@ mod tests {
 	#[test]
 	fn decode_set_auto_select() {
 		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x60, 57];
-		decode::<reply::NullaryReply<types::AutoSelect>>(&x).unwrap();
+		assert_eq!(Result::<_>::Ok(NullaryReply::<types::AutoSelect>::default()), decode(&x));
 	}
 
 	#[test]
@@ -748,6 +750,6 @@ mod tests {
 	#[test]
 	fn decode_set_video_input() {
 		let x = [0x6f as u8, 0x37, 0x03, 0x02, 0x00, 0x62, 59];
-		decode::<reply::NullaryReply<types::VideoInput>>(&x).unwrap();
+		assert_eq!(Result::<_>::Ok(NullaryReply::<types::VideoInput>::default()), decode(&x));
 	}
 }
