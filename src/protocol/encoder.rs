@@ -4,6 +4,8 @@ use std::io::Result;
 use protocol::command::{Command};
 use protocol::checksum::{CheckSum,CheckSumWriter,XORCheckSum};
 
+pub type Error = std::io::Error;
+
 pub fn encode<T : Command, U: Write>(c: &T, w: U) -> Result<usize> {
 	const PREFIX : [u8; 2] = [0x37 as u8, 0x51];
 
