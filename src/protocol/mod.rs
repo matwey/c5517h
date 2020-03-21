@@ -1,10 +1,10 @@
 mod checksum;
-mod command;
 mod decoder;
 mod encoder;
-mod reply;
-mod transaction;
-mod types;
+pub mod reply;
+pub mod transaction;
+pub mod types;
+pub mod command;
 
 pub trait HasCommandOpcode {
 	fn opcode() -> u8;
